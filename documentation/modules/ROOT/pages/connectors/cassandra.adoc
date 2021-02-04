@@ -76,7 +76,6 @@ cdc_free_space_check_interval_ms: 250
 * `cdc_free_space_in_mb` is the maximum capacity allocated to store commit log segments, and defaults to the minimum of 4096 MB and 1/8 of volume space.
 * `cdc_free_space_check_interval_ms` is frequency with which we re-calculate the space taken up by `cdc_raw_directory` to prevent burning CPU cycles unnecessarily when at capacity.
 
-
 [[enabling-cdc-on-table]]
 === Enabling CDC on Table
 
@@ -778,6 +777,26 @@ Depending on the write load of a table, when a Cassandra connector is stopped fo
 ==== Cassandra Table CDC is Enabled, Then Temporarily Disabled, And Then Enabled Again
 
 If a Cassandra table temporarily disables CDC and then re-enables it again after some time, it must be re-bootstrapped. To re-bootstrap an individual table, you can manually remove the recorded offset line corresponding to that table from snapshot_offset.properties file.
+
+=== Launching the connector (use case)
+Note: Using a cassandra 3 node cluster using GossipingPropertyFileSnitch, ubuntu 16.04, Java 8, Cassandra 3.11 and Kafka 2.12-2.60
+
+After producing the Debezium Cassandra Connector .jar file with dependencies, the connector works without any issues after considering the following:
+
+1) log4j.properties file required:
+the log4j.properties file use in this case is the one that can be found within the KAFKA tar (2.12-2.6.0)
+
+2) Java command used:
+in my case running it from my created folder $ /opt/debezium/plugin
+java -cp "./*:./" io.debezium.connector.cassandra.CassandraConnectorTask config.properties -Dlog4j.configuration=file:///opt/debezium/plugin/log4j.properties
+
+Keep in a directory together the debezium cassandra .jar, debezium cassandra .properties file (in this case named config.properties) and the log4j.properties file (found in kafka tar distribution). Also here keep a slighly modified cassandra.yaml (in order to make it work with underlying cassandra cluster using the GossipingPropertyFileSnitch).
+
+3) At the momnet using GossipinPropertyFileSnitch cassandra cluster is not posible if the debezium cassandra connector is not tricked using a modified and separated cassandra.yaml file. In this case copy the cassandra.yaml from your cluster deployment which is using GossipinPropertyFileSnitch and modify the snitch parameter to "SimpleSnitch" and pass this file in the debezium cassandra .properties file using (cassandra.config=/path/to/modified/yaml). In this case keep this modified cassandra.yaml file also in the same directory (e.g /opt/debezium/plugin).
+
+4) CDC and CommitLog cassandra.yaml parameters:
+Follow cdc parameters as per documentation and if you want the connector to find the table(s) for snapshot, lower the following to see the kafka topic polulated. commitlog_segment=1 and commitlog_total_space_in_mb=2 will help to make work the connector with a cassandra with low traffic (edit it according to your needs). Insert records accordingly until the segments/total space is fulfilled
+
 
 [[cassandra-deploying-a-connector]]
 == Deploying A Connector
